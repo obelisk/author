@@ -1,5 +1,5 @@
 syntax = "proto3";
-package govna;
+package author;
 
 message ChallengeRequest {
     string pubkey = 1;
@@ -19,7 +19,7 @@ message AuthorizeResponse {
     map<string, string> approval_response = 1;
 }
 
-service Govna {
+service Author {
     //rpc Challenge(ChallengeRequest) returns (ChallengeResponse);
     //rpc Certificate(CertificateRequest) returns (CertificateResponse);
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);

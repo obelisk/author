@@ -1,6 +1,7 @@
 [package]
-name = "govna"
-version = "0.1.0"
+name = "author"
+version = "0.0.1"
+description = "An example authentication server for managing access to secured resources"
 authors = ["Mitchell Grenier <mitchell@confurious.io>"]
 edition = "2018"
 

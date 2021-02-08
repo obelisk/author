@@ -1,21 +1,21 @@
 use tonic::{transport::Server, Request, Response, Status};
 
-use govna::govna_server::{Govna, GovnaServer};
-use govna::{AuthorizeRequest, AuthorizeResponse};
+use author::author_server::{Author, AuthorServer};
+use author::{AuthorizeRequest, AuthorizeResponse};
 
 use std::collections::HashMap;
 
 use rand::Rng;
 
-pub mod govna {
-    tonic::include_proto!("govna");
+pub mod author {
+    tonic::include_proto!("author");
 }
 
 #[derive(Default)]
-pub struct MyGovna {}
+pub struct MyAuthor {}
 
 #[tonic::async_trait]
-impl Govna for MyGovna {
+impl Author for MyAuthor {
     async fn authorize(
         &self,
         request: Request<AuthorizeRequest>,
@@ -47,7 +47,7 @@ impl Govna for MyGovna {
                 response.insert(String::from("valid_before"), request.authorization_request["valid_before"].clone());
                 response.insert(String::from("valid_after"), request.authorization_request["valid_after"].clone());
 
-                let reply = govna::AuthorizeResponse {
+                let reply = author::AuthorizeResponse {
                     approval_response: response,
                 };
 
@@ -57,7 +57,7 @@ impl Govna for MyGovna {
                 // We don't do anything here other than log a new mTLS cert was issued.
                 // Again you could have tonnes of control over this like requiring mTLS certs
                 // for a user come from a UUID issued to that user.
-                let reply = govna::AuthorizeResponse {
+                let reply = author::AuthorizeResponse {
                     approval_response: HashMap::new(),
                 };
 
@@ -73,12 +73,12 @@ impl Govna for MyGovna {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse().unwrap();
-    let greeter = MyGovna::default();
+    let auth = MyAuthor::default();
 
-    println!("Govna listening on {}", addr);
+    println!("Author listening on {}", addr);
 
     Server::builder()
-        .add_service(GovnaServer::new(greeter))
+        .add_service(AuthorServer::new(auth))
         .serve(addr)
         .await?;
 

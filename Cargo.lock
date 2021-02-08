@@ -232,6 +232,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "author"
+version = "0.0.1"
+dependencies = [
+ "base64 0.12.3",
+ "clap",
+ "diesel",
+ "dotenv",
+ "env_logger",
+ "futures-core",
+ "futures-util",
+ "hex",
+ "influxdb",
+ "log",
+ "prost",
+ "rand 0.8.3",
+ "ring",
+ "sha2",
+ "tokio 1.1.1",
+ "tonic",
+ "tonic-build",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -786,29 +809,6 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "govna"
-version = "0.1.0"
-dependencies = [
- "base64 0.12.3",
- "clap",
- "diesel",
- "dotenv",
- "env_logger",
- "futures-core",
- "futures-util",
- "hex",
- "influxdb",
- "log",
- "prost",
- "rand 0.8.3",
- "ring",
- "sha2",
- "tokio 1.1.1",
- "tonic",
- "tonic-build",
 ]
 
 [[package]]
