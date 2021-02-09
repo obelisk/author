@@ -1,7 +1,10 @@
-use tonic::{transport::Server, Request, Response, Status};
-
 use author::author_server::{Author, AuthorServer};
 use author::{AuthorizeRequest, AuthorizeResponse};
+
+use clap::{App, Arg};
+
+use tonic::{transport::Server, Request, Response, Status};
+use tonic::transport::{Certificate, Identity, ServerTlsConfig};
 
 use std::collections::HashMap;
 
@@ -72,12 +75,54 @@ impl Author for MyAuthor {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let matches = App::new("rustica")
+        .version(env!("CARGO_PKG_VERSION"))
+        .author("Mitchell Grenier <mitchell@confurious.io>")
+        .about("Author is a demo authentication orchestrator")
+        .arg(
+            Arg::new("servercert")
+                .about("Path to PEM that contains server public key")
+                .long("servercert")
+                .short('c')
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::new("serverkey")
+                .about("Path to key that contains server private key")
+                .long("serverkey")
+                .short('k')
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::new("cacert")
+                .about("The CA to use for mTLS")
+                .required(true)
+                .long("ca")
+                .takes_value(true),
+        )
+        .get_matches();
+    
+    let cert = tokio::fs::read(matches.value_of("servercert").unwrap()).await?;
+    let key = tokio::fs::read(matches.value_of("serverkey").unwrap()).await?;
+    let server_identity = Identity::from_pem(cert, key);
+
+    let client_ca_cert = tokio::fs::read(matches.value_of("cacert").unwrap()).await?;
+    let client_ca_cert = Certificate::from_pem(client_ca_cert);
+
+    let tls = ServerTlsConfig::new()
+        .identity(server_identity)
+        .client_ca_root(client_ca_cert);
+
+
     let addr = "[::1]:50051".parse().unwrap();
     let auth = MyAuthor::default();
 
     println!("Author listening on {}", addr);
 
     Server::builder()
+        .tls_config(tls)?
         .add_service(AuthorServer::new(auth))
         .serve(addr)
         .await?;
