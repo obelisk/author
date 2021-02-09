@@ -102,6 +102,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("ca")
                 .takes_value(true),
         )
+        .arg(
+            Arg::new("listenaddress")
+                .about("The CA to use for mTLS")
+                .short('l')
+                .takes_value(true),
+        )
         .get_matches();
     
     let cert = tokio::fs::read(matches.value_of("servercert").unwrap()).await?;
@@ -116,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .client_ca_root(client_ca_cert);
 
 
-    let addr = "[::1]:50051".parse().unwrap();
+    let addr = matches.value_of("listenaddress").unwrap_or("[::1]:50051").parse().unwrap();
     let auth = MyAuthor::default();
 
     println!("Author listening on {}", addr);
