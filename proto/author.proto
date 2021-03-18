@@ -1,15 +1,6 @@
 syntax = "proto3";
 package author;
 
-message ChallengeRequest {
-    string pubkey = 1;
-}
-
-message ChallengeResponse {
-    string time = 1;
-    string challenge = 2;
-}
-
 message AuthorizeRequest {
     map<string, string> identities = 1;
     map<string, string> authorization_request = 2;
@@ -19,8 +10,17 @@ message AuthorizeResponse {
     map<string, string> approval_response = 1;
 }
 
+message AddNewKeyRequest {
+    // If doing a Yubikey attestation, this should contain the certificate from slot f9
+    bytes intermediate_cert = 1;
+    // This is the x509 certificate that contains the public key of the SSH key
+    // you'd like to enroll.
+    bytes cert = 2;
+}
+
+message AddNewKeyResponse {}
+
 service Author {
-    //rpc Challenge(ChallengeRequest) returns (ChallengeResponse);
-    //rpc Certificate(CertificateRequest) returns (CertificateResponse);
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+    rpc AddNewKey(AddNewKeyRequest) returns (AddNewKeyResponse);
 }

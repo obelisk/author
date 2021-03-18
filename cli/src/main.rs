@@ -1,10 +1,15 @@
+#[macro_use]
+extern crate log;
+
 use author::author_server::{Author, AuthorServer};
-use author::{AuthorizeRequest, AuthorizeResponse};
+use author::*;
 
 use clap::{App, Arg};
 
 use tonic::{transport::Server, Request, Response, Status};
 use tonic::transport::{Certificate, Identity, ServerTlsConfig};
+
+use x509_parser::prelude::*;
 
 use std::collections::HashMap;
 
@@ -14,11 +19,34 @@ pub mod author {
     tonic::include_proto!("author");
 }
 
+mod database;
+mod key;
+mod yubikey;
+
 #[derive(Default)]
 pub struct MyAuthor {}
 
+
 #[tonic::async_trait]
 impl Author for MyAuthor {
+    async fn add_new_key(
+        &self,
+        request: Request<AddNewKeyRequest>,
+    ) -> Result<Response<AddNewKeyResponse>, Status> {
+        let request = request.into_inner();
+
+        let key = match yubikey::verify_certificate_chain(&request.cert, &request.intermediate_cert) {
+            Ok(key) => key,
+            Err(e) => return Err(Status::permission_denied(format!("{:?}", e)))
+        };
+
+        info!("New Key: {:?}", &key);
+        match database::add_enrolled_key_to_database(key) {
+            Ok(_) => return Ok(Response::new(AddNewKeyResponse {})),
+            Err(_) => return Err(Status::permission_denied("Cannot enroll a new key at this time")),
+        }
+    }
+
     async fn authorize(
         &self,
         request: Request<AuthorizeRequest>,
@@ -75,6 +103,7 @@ impl Author for MyAuthor {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
     let matches = App::new("rustica")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Mitchell Grenier <mitchell@confurious.io>")
@@ -128,7 +157,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Author listening on {}", addr);
 
     Server::builder()
-        .tls_config(tls)?
+        //.tls_config(tls)?
         .add_service(AuthorServer::new(auth))
         .serve(addr)
         .await?;
