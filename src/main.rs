@@ -1,6 +1,13 @@
 #[macro_use]
 extern crate log;
 
+mod database;
+mod key;
+mod rpc;
+mod yubikey;
+
+use rpc::identity::{self, IdentityType};
+
 use author::author_server::{Author, AuthorServer};
 use author::*;
 
@@ -8,8 +15,6 @@ use clap::{App, Arg};
 
 use tonic::{transport::Server, Request, Response, Status};
 use tonic::transport::{Certificate, Identity, ServerTlsConfig};
-
-use x509_parser::prelude::*;
 
 use std::collections::HashMap;
 
@@ -19,9 +24,7 @@ pub mod author {
     tonic::include_proto!("author");
 }
 
-mod database;
-mod key;
-mod yubikey;
+
 
 #[derive(Default)]
 pub struct MyAuthor {}
@@ -29,22 +32,27 @@ pub struct MyAuthor {}
 
 #[tonic::async_trait]
 impl Author for MyAuthor {
-    async fn add_new_key(
+    async fn add_identity_data(
         &self,
-        request: Request<AddNewKeyRequest>,
-    ) -> Result<Response<AddNewKeyResponse>, Status> {
+        request: Request<AddIdentityDataRequest>,
+    ) -> Result<Response<AddIdentityDataResponse>, Status> {
         let request = request.into_inner();
 
-        let key = match yubikey::verify_certificate_chain(&request.cert, &request.intermediate_cert) {
-            Ok(key) => key,
-            Err(e) => return Err(Status::permission_denied(format!("{:?}", e)))
+        let identity_type = match identity::verify_identity_data(&request.identity_data) {
+            Ok(identity) => identity,
+            Err(e) => return Err(Status::cancelled(format!("Could not add identity: {:?}", e))),
         };
 
-        info!("New Key: {:?}", &key);
-        match database::add_enrolled_key_to_database(key) {
-            Ok(_) => return Ok(Response::new(AddNewKeyResponse {})),
-            Err(_) => return Err(Status::permission_denied("Cannot enroll a new key at this time")),
+        let registered = match identity_type {
+            IdentityType::Ssh(key) => database::register_ssh_key(key),
+            IdentityType::Mtls => Ok(()),
+        };
+
+        if let Err(_e) = registered {
+            return Err(Status::cancelled("Identity could not be registered at this time"))
         }
+
+        Ok(Response::new(AddIdentityDataResponse {}))
     }
 
     async fn authorize(

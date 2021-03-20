@@ -1,6 +1,20 @@
 syntax = "proto3";
 package author;
 
+// Identities are pieces of data that Author can use to determine
+// who is asking for authorization when it is happening through
+// a proxy service. For example, when someone requests access through
+// the editor `Rustica`, identities the following from the requesting client
+// are sent through the `AuthorizeRequest` call:
+//  Source IP
+//  mTLS Identity data
+//  SSH key fingerprint
+
+// Important To Note
+// The `identities` is not checked for correctness (though it may have other
+// heurisitics applied to it). It should only contain data that has been
+// verified by the editor.
+
 message AuthorizeRequest {
     map<string, string> identities = 1;
     map<string, string> authorization_request = 2;
@@ -10,17 +24,17 @@ message AuthorizeResponse {
     map<string, string> approval_response = 1;
 }
 
-message AddNewKeyRequest {
-    // If doing a Yubikey attestation, this should contain the certificate from slot f9
-    bytes intermediate_cert = 1;
-    // This is the x509 certificate that contains the public key of the SSH key
-    // you'd like to enroll.
-    bytes cert = 2;
+// This call adds data into Author for use in further authorization requests.
+// For example, when a user adds a new key via the editor `Rustica`, it feeds
+// into this.
+message AddIdentityDataRequest {
+    map<string, string> identities = 1;
+    map<string, string> identity_data = 2;
 }
 
-message AddNewKeyResponse {}
+message AddIdentityDataResponse {}
 
 service Author {
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
-    rpc AddNewKey(AddNewKeyRequest) returns (AddNewKeyResponse);
+    rpc AddIdentityData(AddIdentityDataRequest) returns (AddIdentityDataResponse);
 }

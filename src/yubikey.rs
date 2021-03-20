@@ -1,9 +1,10 @@
-use crate::der_parser::oid;
 use crate::key::{Key, KeyAttestation, PinPolicy, TouchPolicy};
 
 use sshcerts::PublicKey;
 use std::convert::TryFrom;
+
 use x509_parser::prelude::*;
+use x509_parser::der_parser::oid;
 
 
 const ROOT_CA: &[u8] = "-----BEGIN CERTIFICATE-----

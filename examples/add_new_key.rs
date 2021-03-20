@@ -16,14 +16,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut client = AuthorClient::connect("http://[::1]:50051").await?;
 
-    let request = tonic::Request::new(AddNewKeyRequest {
+    /*let request = tonic::Request::new(AddNewKeyRequest {
         intermediate_cert: intermediate_cert,
         cert: cert,
     });
 
     let response = client.add_new_key(request).await?;
 
-    println!("RESPONSE={:?}", response);
+    println!("RESPONSE={:?}", response);*/
 
     Ok(())
 }
