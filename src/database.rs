@@ -24,14 +24,14 @@ impl Database {
         }
     }
 
-    pub fn register_ssh_key(&self, identities: &HashMap<String, String>, key: Key) -> Result<bool, ()> {
+    pub fn register_ssh_key(&self, identities: &HashMap<String, String>, key: Key) -> Result<(), ()> {
         let connection = match self.pool.get() {
             Ok(conn) => conn,
-            Err(e) => return Err(()),
+            Err(_e) => return Err(()),
         };
         
         let mut registered_key = models::RegisteredKey {
-            fingerprint: key.hash,
+            fingerprint: key.fingerprint,
             user: identities["mtls_identities"].clone(),
             firmware: None,
             hsm_serial: None,
@@ -58,8 +58,8 @@ impl Database {
         };
 
         match result {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
+            Ok(_) => Ok(()),
+            Err(_) => Err(()),
         }
     }
 }

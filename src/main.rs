@@ -41,14 +41,15 @@ impl Author for MyAuthor {
     ) -> Result<Response<AddIdentityDataResponse>, Status> {
         let request = request.into_inner();
 
-        let identity_type = match identity::verify_identity_data(&request.identity_data) {
+        let identity_type = match identity::verify_identity_data(&request.identities, &request.identity_data) {
             Ok(identity) => identity,
             Err(e) => return Err(Status::cancelled(format!("Could not add identity: {:?}", e))),
         };
+        debug!("Good to add identity");
 
         let registered = match identity_type {
             IdentityType::Ssh(key) => self.db.register_ssh_key(&request.identities, key),
-            IdentityType::Mtls => Ok(true),
+            IdentityType::Mtls => Ok(()),
         };
 
         if let Err(_e) = registered {
@@ -161,7 +162,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .identity(server_identity)
         .client_ca_root(client_ca_cert);
 
-
     let addr = matches.value_of("listenaddress").unwrap_or("[::1]:50051").parse().unwrap();
     dotenv().ok();
 
@@ -172,14 +172,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(db) => db,
         Err(_) => panic!("Could not connect to database: {}", &database_url),
     };
+
     let auth = MyAuthor {
         db
     };
 
     println!("Author listening on {}", addr);
-
     Server::builder()
-        //.tls_config(tls)?
+        .tls_config(tls)?
         .add_service(AuthorServer::new(auth))
         .serve(addr)
         .await?;

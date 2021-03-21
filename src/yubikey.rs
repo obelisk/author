@@ -55,7 +55,7 @@ fn build_key(ssh_pubkey: PublicKey, certificate: X509Certificate, client: &[u8],
     if firmware.len() != 3 || serial.len() != 5 || policy.len() != 2 {
         error!("The certificate has an unexpected format");
         Ok(Key {
-            hash: ssh_pubkey.fingerprint().hash,
+            fingerprint: ssh_pubkey.fingerprint().hash,
             attestation: None,
         })
     } else {
@@ -64,7 +64,7 @@ fn build_key(ssh_pubkey: PublicKey, certificate: X509Certificate, client: &[u8],
         let pin_policy = PinPolicy::try_from(policy[0]).unwrap();
         let touch_policy = TouchPolicy::try_from(policy[1]).unwrap();
         Ok(Key {
-            hash: ssh_pubkey.fingerprint().hash,
+            fingerprint: ssh_pubkey.fingerprint().hash,
             attestation: Some(KeyAttestation {
                 firmware,
                 serial,
