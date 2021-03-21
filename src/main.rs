@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate diesel;
+
 mod database;
 mod key;
 mod rpc;
@@ -12,23 +15,23 @@ use author::author_server::{Author, AuthorServer};
 use author::*;
 
 use clap::{App, Arg};
+use database::Database;
+use dotenv::dotenv;
 
 use tonic::{transport::Server, Request, Response, Status};
 use tonic::transport::{Certificate, Identity, ServerTlsConfig};
 
 use std::collections::HashMap;
-
+use std::env;
 use rand::Rng;
 
 pub mod author {
     tonic::include_proto!("author");
 }
 
-
-
-#[derive(Default)]
-pub struct MyAuthor {}
-
+pub struct MyAuthor {
+    db: database::Database,
+}
 
 #[tonic::async_trait]
 impl Author for MyAuthor {
@@ -44,8 +47,8 @@ impl Author for MyAuthor {
         };
 
         let registered = match identity_type {
-            IdentityType::Ssh(key) => database::register_ssh_key(key),
-            IdentityType::Mtls => Ok(()),
+            IdentityType::Ssh(key) => self.db.register_ssh_key(&request.identities, key),
+            IdentityType::Mtls => Ok(true),
         };
 
         if let Err(_e) = registered {
@@ -160,7 +163,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     let addr = matches.value_of("listenaddress").unwrap_or("[::1]:50051").parse().unwrap();
-    let auth = MyAuthor::default();
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+
+    let db = match Database::new(&database_url) {
+        Ok(db) => db,
+        Err(_) => panic!("Could not connect to database: {}", &database_url),
+    };
+    let auth = MyAuthor {
+        db
+    };
 
     println!("Author listening on {}", addr);
 
