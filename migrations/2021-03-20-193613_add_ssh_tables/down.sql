@@ -1,1 +1,5 @@
 DROP TABLE registered_keys;
+DROP TABLE fingerprint_principal_authorizations;
+DROP TABLE fingerprint_host_authorizations;
+DROP TABLE fingerprint_permissions;
+DROP TABLE fingerprint_extensions;

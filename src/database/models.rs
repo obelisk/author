@@ -1,4 +1,20 @@
-use super::schema::registered_keys;
+use super::schema::{
+    fingerprint_permissions,
+    registered_keys
+};
+
+#[derive(Queryable, Insertable)]
+#[table_name = "fingerprint_permissions"]
+pub struct FingerprintPermission {
+    pub fingerprint: String,
+    pub host_unrestricted: bool,
+	pub principal_unrestricted: bool,
+	pub can_create_host_certs: bool,
+	pub can_create_user_certs: bool,
+	pub max_creation_time: i64,
+	pub force_source_ip: bool,
+	pub force_command: Option<String>,
+}
 
 #[derive(Insertable)]
 #[table_name = "registered_keys"]

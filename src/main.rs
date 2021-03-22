@@ -9,7 +9,9 @@ mod key;
 mod rpc;
 mod yubikey;
 
-use rpc::identity::{self, IdentityType};
+use rpc::{
+    identity::{self, IdentityType},
+};
 
 use author::author_server::{Author, AuthorServer};
 use author::*;
@@ -33,8 +35,22 @@ pub struct MyAuthor {
     db: database::Database,
 }
 
+
 #[tonic::async_trait]
 impl Author for MyAuthor {
+    async fn set_permissions_on_ssh_key(
+        &self,
+        request: Request<SetPermissionsOnSshKeyRequest>,
+    ) -> Result<Response<SetPermissionsOnSshKeyResponse>, Status> {
+        let _remote_addr = request.remote_addr().unwrap();
+        let request = request.into_inner();
+
+        match &self.db.set_permissions_on_ssh_key(request) {
+            Ok(_) => Ok(Response::new(SetPermissionsOnSshKeyResponse {})),
+            Err(_) => Err(Status::permission_denied("Could not set permissions on key")),
+        }
+    }
+
     async fn add_identity_data(
         &self,
         request: Request<AddIdentityDataRequest>,
@@ -179,7 +195,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Author listening on {}", addr);
     Server::builder()
-        .tls_config(tls)?
+        //.tls_config(tls)?
         .add_service(AuthorServer::new(auth))
         .serve(addr)
         .await?;

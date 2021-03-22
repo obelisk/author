@@ -1,6 +1,8 @@
 pub mod schema;
 pub mod models;
 
+use crate::author::SetPermissionsOnSshKeyRequest;
+
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::r2d2::{Pool, ConnectionManager};
@@ -12,6 +14,27 @@ use crate::key::Key;
 
 pub struct Database {
     pool: Pool<ConnectionManager<SqliteConnection>>
+}
+
+impl From<SetPermissionsOnSshKeyRequest> for models::FingerprintPermission {
+    fn from(perms: SetPermissionsOnSshKeyRequest) -> Self {
+        let force_command = if perms.force_command.len() == 0 {
+            None
+        } else {
+            Some (perms.force_command)
+        };
+
+        models::FingerprintPermission {
+            fingerprint: perms.fingerprint,
+            host_unrestricted: perms.host_unrestricted,
+            principal_unrestricted: perms.principal_unrestricted,
+            can_create_host_certs: perms.can_create_host_certs,
+            can_create_user_certs: perms.can_create_user_certs,
+            max_creation_time: perms.max_creation_time as i64,
+            force_source_ip: perms.force_source_ip,
+            force_command: force_command,
+        }
+    }
 }
 
 impl Database {
@@ -60,6 +83,34 @@ impl Database {
         match result {
             Ok(_) => Ok(()),
             Err(_) => Err(()),
+        }
+    }
+
+    pub fn set_permissions_on_ssh_key(&self, permissions: SetPermissionsOnSshKeyRequest) -> Result<(), ()> {
+        let connection = match self.pool.get() {
+            Ok(conn) => conn,
+            Err(_e) => return Err(()),
+        };
+        
+        let row: models::FingerprintPermission = permissions.into();
+
+        {
+            use schema::fingerprint_permissions::dsl::*;
+            // Annoyingly upsert is not yet released for SQLite so we need to
+            // delete the row first, then re-insert it.
+            if let Err(e) = diesel::delete(fingerprint_permissions).filter(fingerprint.eq(&row.fingerprint)).execute(&connection) {
+                error!("Could not delete old fingerprint permissions: {}", e);
+                return Err(())
+            }
+            match diesel::insert_into(fingerprint_permissions)
+                .values(&row)
+                .execute(&connection) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    error!("Could not insert new fingerprint permissions: {}", e);
+                    Err(())
+                },
+            }
         }
     }
 }

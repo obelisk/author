@@ -34,7 +34,25 @@ message AddIdentityDataRequest {
 
 message AddIdentityDataResponse {}
 
+message SetPermissionsOnSSHKeyRequest {
+    map<string, string> identities = 1;
+    string fingerprint = 2;
+    bool can_create_host_certs = 3;
+    bool can_create_user_certs = 4;
+    bool host_unrestricted = 5;
+    bool principal_unrestricted = 6;
+    //repeated string authorized_hosts = 7;
+    //repeated string principals = 8;
+    uint64 max_creation_time = 9;
+    map<string, string> extensions = 10;
+    string force_command = 11;
+    bool force_source_ip = 12;
+}
+
+message SetPermissionsOnSSHKeyResponse {}
+
 service Author {
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
     rpc AddIdentityData(AddIdentityDataRequest) returns (AddIdentityDataResponse);
+    rpc SetPermissionsOnSSHKey(SetPermissionsOnSSHKeyRequest) returns (SetPermissionsOnSSHKeyResponse);
 }

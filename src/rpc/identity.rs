@@ -8,7 +8,7 @@ use std::convert::From;
 pub enum IdentityError {
     ParseError,
     DataError,
-    VerificationError,
+    //VerificationError,
     UnknownIdentityType,
 }
 
