@@ -51,6 +51,19 @@ impl Author for MyAuthor {
         }
     }
 
+    async fn modify_ssh_key_principals(
+        &self,
+        request: Request<ModifySshKeyPrincipalsRequest>,
+    ) -> Result<Response<ModifySshKeyPrincipalsResponse>, Status> {
+        let _remote_addr = request.remote_addr().unwrap();
+        let request = request.into_inner();
+
+        match &self.db.modify_ssh_key_principals(request) {
+            Ok(_) => Ok(Response::new(ModifySshKeyPrincipalsResponse {})),
+            Err(_) => Err(Status::permission_denied("Could not set principals on key")),
+        }
+    }
+
     async fn add_identity_data(
         &self,
         request: Request<AddIdentityDataRequest>,

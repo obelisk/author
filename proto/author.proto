@@ -51,8 +51,18 @@ message SetPermissionsOnSSHKeyRequest {
 
 message SetPermissionsOnSSHKeyResponse {}
 
+message ModifySSHKeyPrincipalsRequest {
+    map<string, string> identities = 1;
+    string fingerprint = 2;
+    string action = 3;
+    repeated string principals = 4;
+}
+
+message ModifySSHKeyPrincipalsResponse {}
+
 service Author {
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
     rpc AddIdentityData(AddIdentityDataRequest) returns (AddIdentityDataResponse);
     rpc SetPermissionsOnSSHKey(SetPermissionsOnSSHKeyRequest) returns (SetPermissionsOnSSHKeyResponse);
+    rpc ModifySSHKeyPrincipals(ModifySSHKeyPrincipalsRequest) returns (ModifySSHKeyPrincipalsResponse);
 }

@@ -29,8 +29,7 @@ table! {
 }
 
 table! {
-    fingerprint_principal_authorizations (id) {
-        id -> BigInt,
+    fingerprint_principal_authorizations (fingerprint, principal) {
         fingerprint -> Text,
         principal -> Text,
     }

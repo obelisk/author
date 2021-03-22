@@ -10,9 +10,9 @@ CREATE TABLE registered_keys (
 );
 
 CREATE TABLE fingerprint_principal_authorizations (
-	id BIGINT PRIMARY KEY NOT NULL,
 	fingerprint TEXT NOT NULL,
-	principal TEXT NOT NULL
+	principal TEXT NOT NULL,
+	PRIMARY KEY (fingerprint, principal)
 );
 
 CREATE TABLE fingerprint_host_authorizations (

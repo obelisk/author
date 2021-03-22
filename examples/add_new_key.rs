@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         identities: identities.clone(),
         identity_data,
     });
-
+    println!("Adding new identity");
     let response = client.add_identity_data(request).await?;
     println!("RESPONSE={:?}", response);
 
@@ -51,7 +51,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         force_command: String::from(""),
     });
 
+    println!("Setting permissions on key");
     let response = client.set_permissions_on_ssh_key(request).await?;
+    println!("RESPONSE={:?}", response);
+
+    let request = tonic::Request::new(ModifySshKeyPrincipalsRequest {
+        identities: identities.clone(),
+        fingerprint: String::from("1hVBYYHta/SuXiNUoKd1XsHEDtLEJuX+eEEZC7BZvdY"),
+        action: String::from("add"),
+        principals: vec![String::from("obelisk"), String::from("mitchell")]
+    });
+
+    println!("Adding principals to key");
+    let response = client.modify_ssh_key_principals(request).await?;
+    println!("RESPONSE={:?}", response);
+
+    let request = tonic::Request::new(ModifySshKeyPrincipalsRequest {
+        identities: identities.clone(),
+        fingerprint: String::from("1hVBYYHta/SuXiNUoKd1XsHEDtLEJuX+eEEZC7BZvdY"),
+        action: String::from("remove"),
+        principals: vec![String::from("obelisk")]
+    });
+
+    println!("Removing principal from key");
+    let response = client.modify_ssh_key_principals(request).await?;
     println!("RESPONSE={:?}", response);
 
     Ok(())

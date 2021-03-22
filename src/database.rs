@@ -1,7 +1,11 @@
 pub mod schema;
 pub mod models;
 
-use crate::author::SetPermissionsOnSshKeyRequest;
+use crate::author::{
+    ModifySshKeyPrincipalsRequest,
+    SetPermissionsOnSshKeyRequest
+};
+
 
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -110,6 +114,62 @@ impl Database {
                     error!("Could not insert new fingerprint permissions: {}", e);
                     Err(())
                 },
+            }
+        }
+    }
+
+    pub fn modify_ssh_key_principals(&self, request: ModifySshKeyPrincipalsRequest) -> Result<(), ()> {
+        let connection = match self.pool.get() {
+            Ok(conn) => conn,
+            Err(_e) => return Err(()),
+        };
+        let fingerprint = &request.fingerprint;
+        let principals: Vec<models::PrincipalAuthorization> = request.principals.iter().map(|x|
+            models::PrincipalAuthorization {
+                fingerprint: fingerprint.clone(),
+                principal: x.clone(),
+            }).collect();
+
+        {
+            use schema::fingerprint_principal_authorizations::dsl::*;
+
+            match request.action.as_str() {
+                "add" => {
+                    // Again Diesel issues where it doesn't support multiple
+                    // insert in SQLite
+                    let mut errors: Vec<String> = vec![];
+                    principals.into_iter().fold(&mut errors, |v, x| {
+                        if let Err(e) = diesel::insert_into(fingerprint_principal_authorizations)
+                        .values(&x)
+                        .execute(&connection) {
+                            error!("Error adding principal {}: {}", x.principal, e);
+                            v.push(x.principal);
+                        }
+                        v
+                    });
+                    match errors.len() {
+                        0 => Ok(()),
+                        _ => {
+                            error!("Errored adding principals {} to {}", errors.join(","), &request.fingerprint);
+                            Err(())
+                        }
+                    }
+                },
+                "remove" => {
+                    match diesel::delete(fingerprint_principal_authorizations)
+                        .filter(fingerprint.eq(&fingerprint))
+                        .filter(principal.eq_any(&request.principals)).execute(&connection) {
+                        Ok(_) => Ok(()),
+                        Err(_) => {
+                            error!("Error deleting principals from key {}", &request.fingerprint);
+                            Err(())
+                        }
+                    }
+                },
+                n => {
+                    error!("Unknown action on principals tried to be taken: {}", n);
+                    Err(())
+                }
             }
         }
     }
