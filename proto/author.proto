@@ -37,16 +37,15 @@ message AddIdentityDataResponse {}
 message SetPermissionsOnSSHKeyRequest {
     map<string, string> identities = 1;
     string fingerprint = 2;
-    bool can_create_host_certs = 3;
-    bool can_create_user_certs = 4;
-    bool host_unrestricted = 5;
-    bool principal_unrestricted = 6;
-    //repeated string authorized_hosts = 7;
-    //repeated string principals = 8;
-    uint64 max_creation_time = 9;
-    map<string, string> extensions = 10;
-    string force_command = 11;
-    bool force_source_ip = 12;
+    bool ssh_enabled = 3;
+    bool can_create_host_certs = 4;
+    bool can_create_user_certs = 5;
+    bool host_unrestricted = 6;
+    bool principal_unrestricted = 7;
+    uint64 max_creation_time = 8;
+    map<string, string> extensions = 9;
+    string force_command = 10;
+    bool force_source_ip = 11;
 }
 
 message SetPermissionsOnSSHKeyResponse {}
@@ -75,16 +74,14 @@ message SSHKey {
     string firmware = 6;
     string attestation_certificate = 7;
     string attestation_intermediate = 8;
-    bool can_create_host_certs = 9;
-    bool can_create_user_certs = 10;
-    bool host_unrestricted = 11;
-    bool principal_unrestricted = 12;
-    uint64 max_creation_time = 13;
-    map<string, string> extensions = 14;
+    bool ssh_enabled = 9;
+    bool can_create_host_certs = 10;
+    bool can_create_user_certs = 11;
+    bool host_unrestricted = 12;
+    bool principal_unrestricted = 13;
+    uint64 max_creation_time = 14;
     string force_command = 15;
     bool force_source_ip = 16;
-    repeated string principals = 17;
-    repeated string host_groups = 18;
 }
 
 message ListRegisteredKeysResponse {

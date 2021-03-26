@@ -16,8 +16,23 @@ table! {
 }
 
 table! {
-    fingerprint_permissions (fingerprint) {
+    fingerprint_principal_authorizations (fingerprint, principal) {
         fingerprint -> Text,
+        principal -> Text,
+    }
+}
+
+table! {
+    registered_ssh_keys (fingerprint) {
+        fingerprint -> Text,
+        user -> Text,
+        pin_policy -> Nullable<Text>,
+        touch_policy -> Nullable<Text>,
+        hsm_serial -> Nullable<Text>,
+        firmware -> Nullable<Text>,
+        attestation_certificate -> Nullable<Text>,
+        attestation_intermediate -> Nullable<Text>,
+        ssh_enabled -> Bool,
         host_unrestricted -> Bool,
         principal_unrestricted -> Bool,
         can_create_host_certs -> Bool,
@@ -28,30 +43,9 @@ table! {
     }
 }
 
-table! {
-    fingerprint_principal_authorizations (fingerprint, principal) {
-        fingerprint -> Text,
-        principal -> Text,
-    }
-}
-
-table! {
-    registered_keys (fingerprint) {
-        fingerprint -> Text,
-        user -> Text,
-        pin_policy -> Nullable<Text>,
-        touch_policy -> Nullable<Text>,
-        hsm_serial -> Nullable<Text>,
-        firmware -> Nullable<Text>,
-        attestation_certificate -> Nullable<Text>,
-        attestation_intermediate -> Nullable<Text>,
-    }
-}
-
 allow_tables_to_appear_in_same_query!(
     fingerprint_extensions,
     fingerprint_host_authorizations,
-    fingerprint_permissions,
     fingerprint_principal_authorizations,
-    registered_keys,
+    registered_ssh_keys,
 );

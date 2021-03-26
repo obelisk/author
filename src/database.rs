@@ -23,23 +23,26 @@ pub struct Database {
     pool: Pool<ConnectionManager<SqliteConnection>>
 }
 
-impl From<SetPermissionsOnSshKeyRequest> for models::FingerprintPermission {
-    fn from(perms: SetPermissionsOnSshKeyRequest) -> Self {
-        let force_command = if perms.force_command.len() == 0 {
-            None
-        } else {
-            Some(perms.force_command)
-        };
+impl From<models::RegisteredSshKey> for SshKey {
+    fn from(rsk: models::RegisteredSshKey) -> Self {
+        SshKey {
+            fingerprint: rsk.fingerprint,
+            user: rsk.user,
+            pin_policy: rsk.pin_policy.unwrap_or_default(),
+            touch_policy: rsk.touch_policy.unwrap_or_default(),
+            serial: rsk.hsm_serial.unwrap_or_default(),
+            firmware: rsk.firmware.unwrap_or_default(),
+            attestation_certificate: rsk.attestation_certificate.unwrap_or_default(),
+            attestation_intermediate: rsk.attestation_intermediate.unwrap_or_default(),
+            ssh_enabled: rsk.ssh_enabled,
+            host_unrestricted: rsk.host_unrestricted,
+            principal_unrestricted: rsk.principal_unrestricted,
+            can_create_host_certs: rsk.can_create_host_certs,
+            can_create_user_certs: rsk.can_create_user_certs,
+            max_creation_time: rsk.max_creation_time as u64,
+            force_source_ip: rsk.force_source_ip,
+            force_command: rsk.force_command.unwrap_or_default(),
 
-        models::FingerprintPermission {
-            fingerprint: perms.fingerprint,
-            host_unrestricted: perms.host_unrestricted,
-            principal_unrestricted: perms.principal_unrestricted,
-            can_create_host_certs: perms.can_create_host_certs,
-            can_create_user_certs: perms.can_create_user_certs,
-            max_creation_time: perms.max_creation_time as i64,
-            force_source_ip: perms.force_source_ip,
-            force_command: force_command,
         }
     }
 }
@@ -60,7 +63,7 @@ impl Database {
             Err(_e) => return Err(()),
         };
         
-        let mut registered_key = models::RegisteredKey {
+        let mut registered_key = models::RegisteredSshKey {
             fingerprint: key.fingerprint,
             user: identities["mtls_identities"].clone(),
             firmware: None,
@@ -69,6 +72,14 @@ impl Database {
             pin_policy: None,
             attestation_certificate: None,
             attestation_intermediate: None,
+            ssh_enabled: false,
+            host_unrestricted: false,
+            principal_unrestricted: false,
+            can_create_host_certs: false,
+            can_create_user_certs: false,
+            max_creation_time: 0,
+            force_source_ip: true,
+            force_command: None,
         };
 
         if let Some(attestation) = &key.attestation {
@@ -81,8 +92,8 @@ impl Database {
         }
 
         let result = {
-            use schema::registered_keys::dsl::*;
-            diesel::insert_into(registered_keys)
+            use schema::registered_ssh_keys::dsl::*;
+            diesel::insert_into(registered_ssh_keys)
                 .values(&registered_key)
                 .execute(&connection)
         };
@@ -105,85 +116,21 @@ impl Database {
             Err(_e) => return Err(()),
         };
 
-        let results = {
-            //use schema::registered_keys::dsl::*;
-            use schema::*;
+        let keys = {
+            use schema::registered_ssh_keys::dsl::*;
 
-            #[derive(Queryable)]
-            struct Row {
-                fingerprint: String,
-                user: String,
-                pin_policy: Option<String>,
-                touch_policy: Option<String>,
-                serial: Option<String>,
-                firmware: Option<String>,
-                //attestation_certificate: Option<String>,
-                //attestation_intermediate: Option<String>,
-                host_unrestricted: Option<bool>,
-                principal_unrestricted: Option<bool>,
-                can_create_host_certs: Option<bool>,
-                can_create_user_certs: Option<bool>,
-                max_creation_time: Option<i64>,
-                force_source_ip: Option<bool>,
-                force_command: Option<String>,
-            }
-
-            match schema::registered_keys::table
-                .filter(registered_keys::fingerprint.like(format!("%{}%", &req.query)))
-                .or_filter(registered_keys::user.like(format!("%{}%", &req.query)))
-                .left_join(schema::fingerprint_permissions::table.on(registered_keys::fingerprint.eq(fingerprint_permissions::dsl::fingerprint)))
+            match schema::registered_ssh_keys::table
+                .filter(fingerprint.like(format!("%{}%", &req.query)))
+                .or_filter(user.like(format!("%{}%", &req.query)))
                 .limit(limit)
-                .select((
-                    registered_keys::fingerprint,
-                    registered_keys::user,
-                    registered_keys::pin_policy,
-                    registered_keys::touch_policy,
-                    registered_keys::hsm_serial,
-                    registered_keys::firmware,
-                    //registered_keys::attestation_certificate,
-                    //registered_keys::attestation_intermediate,
-                    fingerprint_permissions::host_unrestricted.nullable(),
-                    fingerprint_permissions::principal_unrestricted.nullable(),
-                    fingerprint_permissions::can_create_host_certs.nullable(),
-                    fingerprint_permissions::can_create_user_certs.nullable(),
-                    fingerprint_permissions::max_creation_time.nullable(),
-                    fingerprint_permissions::force_source_ip.nullable(),
-                    fingerprint_permissions::force_command.nullable(),
-                ))
-                .load::<Row>(&connection) {
+                .load::<models::RegisteredSshKey>(&connection) {
                     Ok(results) => results,
                     Err(_) => return Err(()),
                 }
         };
 
-        // TODO: Bad use of unwrap or default. This should probably be
-        // retooled or rethought
-        let keys =  results.into_iter().map(|x| {
-            SshKey {
-                fingerprint: x.fingerprint,
-                user: x.user,
-                pin_policy: x.pin_policy.unwrap_or_default(),
-                touch_policy: x.touch_policy.unwrap_or_default(),
-                serial: x.serial.unwrap_or_default(),
-                firmware: x.firmware.unwrap_or_default(),
-                attestation_certificate: String::new(),
-                attestation_intermediate: String::new(),
-                host_unrestricted: x.host_unrestricted.unwrap_or_default(),
-                principal_unrestricted: x.principal_unrestricted.unwrap_or_default(),
-                can_create_host_certs: x.can_create_host_certs.unwrap_or_default(),
-                can_create_user_certs: x.can_create_user_certs.unwrap_or_default(),
-                max_creation_time: x.max_creation_time.unwrap_or_default() as u64,
-                force_source_ip: x.force_source_ip.unwrap_or_default(),
-                force_command: x.force_command.unwrap_or_default(),
-                extensions: HashMap::new(),
-                host_groups: vec![],
-                principals: vec![],
-            }
-        }).collect();
-
-
         Ok(ListRegisteredKeysResponse {
-            keys,
+            keys: keys.into_iter().map(|x| x.into()).collect(),
         })
     }
 
@@ -192,19 +139,20 @@ impl Database {
             Ok(conn) => conn,
             Err(_e) => return Err(()),
         };
-        
-        let row: models::FingerprintPermission = permissions.into();
 
         {
-            use schema::fingerprint_permissions::dsl::*;
-            // Annoyingly upsert is not yet released for SQLite so we need to
-            // delete the row first, then re-insert it.
-            if let Err(e) = diesel::delete(fingerprint_permissions).filter(fingerprint.eq(&row.fingerprint)).execute(&connection) {
-                error!("Could not delete old fingerprint permissions: {}", e);
-                return Err(())
-            }
-            match diesel::insert_into(fingerprint_permissions)
-                .values(&row)
+            use schema::registered_ssh_keys::dsl::*;
+            match diesel::update(registered_ssh_keys)
+                .set((
+                    ssh_enabled.eq(permissions.ssh_enabled),
+                    host_unrestricted.eq(permissions.host_unrestricted),
+                    principal_unrestricted.eq(permissions.principal_unrestricted),
+                    can_create_host_certs.eq(permissions.can_create_host_certs),
+                    can_create_user_certs.eq(permissions.can_create_user_certs),
+                    max_creation_time.eq(permissions.max_creation_time as i64),
+                    force_source_ip.eq(permissions.force_source_ip),
+                    force_command.eq(permissions.force_command),
+                ))
                 .execute(&connection) {
                 Ok(_) => Ok(()),
                 Err(e) => {
