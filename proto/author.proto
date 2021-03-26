@@ -60,9 +60,41 @@ message ModifySSHKeyPrincipalsRequest {
 
 message ModifySSHKeyPrincipalsResponse {}
 
+message ListRegisteredKeysRequest {
+    map<string, string> identities = 1;
+    string query = 2;
+    uint64 limit = 3;
+}
+
+message SSHKey {
+    string fingerprint = 1;
+    string user = 2;
+    string pin_policy = 3;
+    string touch_policy = 4;
+    string serial = 5;
+    string firmware = 6;
+    string attestation_certificate = 7;
+    string attestation_intermediate = 8;
+    bool can_create_host_certs = 9;
+    bool can_create_user_certs = 10;
+    bool host_unrestricted = 11;
+    bool principal_unrestricted = 12;
+    uint64 max_creation_time = 13;
+    map<string, string> extensions = 14;
+    string force_command = 15;
+    bool force_source_ip = 16;
+    repeated string principals = 17;
+    repeated string host_groups = 18;
+}
+
+message ListRegisteredKeysResponse {
+    repeated SSHKey keys = 1;
+}
+
 service Author {
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
     rpc AddIdentityData(AddIdentityDataRequest) returns (AddIdentityDataResponse);
     rpc SetPermissionsOnSSHKey(SetPermissionsOnSSHKeyRequest) returns (SetPermissionsOnSSHKeyResponse);
     rpc ModifySSHKeyPrincipals(ModifySSHKeyPrincipalsRequest) returns (ModifySSHKeyPrincipalsResponse);
+    rpc ListRegisteredKeys(ListRegisteredKeysRequest) returns (ListRegisteredKeysResponse);
 }

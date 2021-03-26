@@ -3,7 +3,10 @@ pub mod models;
 
 use crate::author::{
     ModifySshKeyPrincipalsRequest,
-    SetPermissionsOnSshKeyRequest
+    SetPermissionsOnSshKeyRequest,
+    SshKey,
+    ListRegisteredKeysRequest,
+    ListRegisteredKeysResponse,
 };
 
 
@@ -25,7 +28,7 @@ impl From<SetPermissionsOnSshKeyRequest> for models::FingerprintPermission {
         let force_command = if perms.force_command.len() == 0 {
             None
         } else {
-            Some (perms.force_command)
+            Some(perms.force_command)
         };
 
         models::FingerprintPermission {
@@ -88,6 +91,100 @@ impl Database {
             Ok(_) => Ok(()),
             Err(_) => Err(()),
         }
+    }
+
+    pub fn list_registered_keys(&self, req: ListRegisteredKeysRequest) -> Result<ListRegisteredKeysResponse, ()> {
+        let limit = if req.limit > 50 {
+            50 as i64
+        } else {
+            req.limit as i64
+        };
+
+        let connection = match self.pool.get() {
+            Ok(conn) => conn,
+            Err(_e) => return Err(()),
+        };
+
+        let results = {
+            //use schema::registered_keys::dsl::*;
+            use schema::*;
+
+            #[derive(Queryable)]
+            struct Row {
+                fingerprint: String,
+                user: String,
+                pin_policy: Option<String>,
+                touch_policy: Option<String>,
+                serial: Option<String>,
+                firmware: Option<String>,
+                //attestation_certificate: Option<String>,
+                //attestation_intermediate: Option<String>,
+                host_unrestricted: Option<bool>,
+                principal_unrestricted: Option<bool>,
+                can_create_host_certs: Option<bool>,
+                can_create_user_certs: Option<bool>,
+                max_creation_time: Option<i64>,
+                force_source_ip: Option<bool>,
+                force_command: Option<String>,
+            }
+
+            match schema::registered_keys::table
+                .filter(registered_keys::fingerprint.like(format!("%{}%", &req.query)))
+                .or_filter(registered_keys::user.like(format!("%{}%", &req.query)))
+                .left_join(schema::fingerprint_permissions::table.on(registered_keys::fingerprint.eq(fingerprint_permissions::dsl::fingerprint)))
+                .limit(limit)
+                .select((
+                    registered_keys::fingerprint,
+                    registered_keys::user,
+                    registered_keys::pin_policy,
+                    registered_keys::touch_policy,
+                    registered_keys::hsm_serial,
+                    registered_keys::firmware,
+                    //registered_keys::attestation_certificate,
+                    //registered_keys::attestation_intermediate,
+                    fingerprint_permissions::host_unrestricted.nullable(),
+                    fingerprint_permissions::principal_unrestricted.nullable(),
+                    fingerprint_permissions::can_create_host_certs.nullable(),
+                    fingerprint_permissions::can_create_user_certs.nullable(),
+                    fingerprint_permissions::max_creation_time.nullable(),
+                    fingerprint_permissions::force_source_ip.nullable(),
+                    fingerprint_permissions::force_command.nullable(),
+                ))
+                .load::<Row>(&connection) {
+                    Ok(results) => results,
+                    Err(_) => return Err(()),
+                }
+        };
+
+        // TODO: Bad use of unwrap or default. This should probably be
+        // retooled or rethought
+        let keys =  results.into_iter().map(|x| {
+            SshKey {
+                fingerprint: x.fingerprint,
+                user: x.user,
+                pin_policy: x.pin_policy.unwrap_or_default(),
+                touch_policy: x.touch_policy.unwrap_or_default(),
+                serial: x.serial.unwrap_or_default(),
+                firmware: x.firmware.unwrap_or_default(),
+                attestation_certificate: String::new(),
+                attestation_intermediate: String::new(),
+                host_unrestricted: x.host_unrestricted.unwrap_or_default(),
+                principal_unrestricted: x.principal_unrestricted.unwrap_or_default(),
+                can_create_host_certs: x.can_create_host_certs.unwrap_or_default(),
+                can_create_user_certs: x.can_create_user_certs.unwrap_or_default(),
+                max_creation_time: x.max_creation_time.unwrap_or_default() as u64,
+                force_source_ip: x.force_source_ip.unwrap_or_default(),
+                force_command: x.force_command.unwrap_or_default(),
+                extensions: HashMap::new(),
+                host_groups: vec![],
+                principals: vec![],
+            }
+        }).collect();
+
+
+        Ok(ListRegisteredKeysResponse {
+            keys,
+        })
     }
 
     pub fn set_permissions_on_ssh_key(&self, permissions: SetPermissionsOnSshKeyRequest) -> Result<(), ()> {

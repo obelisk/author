@@ -38,6 +38,19 @@ pub struct MyAuthor {
 
 #[tonic::async_trait]
 impl Author for MyAuthor {
+    async fn list_registered_keys(
+        &self,
+        request: Request<ListRegisteredKeysRequest>,
+    ) -> Result<Response<ListRegisteredKeysResponse>, Status> {
+        let _remote_addr = request.remote_addr().unwrap();
+        let request = request.into_inner();
+        
+        match self.db.list_registered_keys(request) {
+            Ok(keys) => Ok(Response::new(keys)),
+            Err(_) => Err(Status::permission_denied("Could not set permissions on key"))
+        }
+    }
+
     async fn set_permissions_on_ssh_key(
         &self,
         request: Request<SetPermissionsOnSshKeyRequest>,
@@ -74,7 +87,6 @@ impl Author for MyAuthor {
             Ok(identity) => identity,
             Err(e) => return Err(Status::cancelled(format!("Could not add identity: {:?}", e))),
         };
-        debug!("Good to add identity");
 
         let registered = match identity_type {
             IdentityType::Ssh(key) => self.db.register_ssh_key(&request.identities, key),

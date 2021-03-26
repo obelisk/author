@@ -31,7 +31,7 @@ fn verify_ssh_identity(identities: &HashMap<String, String>, identity_data: &Has
         vec![]
     };
 
-    let intermediate = if let Some(intermediate) = identity_data.get("intermediate") {
+    let intermediate = if let Some(intermediate) = identity_data.get("intermediate_certificate") {
         hex::decode(intermediate)?
     } else {
         vec![]

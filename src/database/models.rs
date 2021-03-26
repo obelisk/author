@@ -1,6 +1,6 @@
 use super::schema::*;
 
-#[derive(Insertable)]
+#[derive(Queryable, Insertable)]
 #[table_name = "registered_keys"]
 pub struct RegisteredKey {
     pub fingerprint: String,

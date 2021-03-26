@@ -34,8 +34,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         identities: identities.clone(),
         identity_data,
     });
+
     println!("Adding new identity");
     let response = client.add_identity_data(request).await?;
+    println!("RESPONSE={:?}", response);
+
+    let request = tonic::Request::new(ListRegisteredKeysRequest {
+        identities: identities.clone(),
+        limit: 50,
+        query: "test".to_string()
+    });
+
+    let response = client.list_registered_keys(request).await?;
     println!("RESPONSE={:?}", response);
 
     let request = tonic::Request::new(SetPermissionsOnSshKeyRequest {
@@ -54,6 +64,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Setting permissions on key");
     let response = client.set_permissions_on_ssh_key(request).await?;
     println!("RESPONSE={:?}", response);
+
+    let request = tonic::Request::new(ListRegisteredKeysRequest {
+        identities: identities.clone(),
+        limit: 50,
+        query: "test".to_string()
+    });
+
+    let response = client.list_registered_keys(request).await?;
+    println!("RESPONSE={:?}", response);
+
 
     let request = tonic::Request::new(ModifySshKeyPrincipalsRequest {
         identities: identities.clone(),
