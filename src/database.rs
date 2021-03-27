@@ -13,7 +13,6 @@ use crate::author::{
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::r2d2::{Pool, ConnectionManager};
-//use std::time::SystemTime;
 
 use std::collections::HashMap;
 

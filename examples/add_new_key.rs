@@ -51,6 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = tonic::Request::new(SetPermissionsOnSshKeyRequest {
         identities: identities.clone(),
         fingerprint: String::from("1hVBYYHta/SuXiNUoKd1XsHEDtLEJuX+eEEZC7BZvdY"),
+        ssh_enabled: true,
         host_unrestricted: true,
         principal_unrestricted: true,
         can_create_host_certs: true,

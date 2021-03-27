@@ -47,7 +47,7 @@ impl Author for MyAuthor {
         
         match self.db.list_registered_keys(request) {
             Ok(keys) => Ok(Response::new(keys)),
-            Err(_) => Err(Status::permission_denied("Could not set permissions on key"))
+            Err(_) => Err(Status::permission_denied("Could not retrieve key list"))
         }
     }
 
@@ -94,7 +94,7 @@ impl Author for MyAuthor {
         };
 
         if let Err(_e) = registered {
-            return Err(Status::cancelled("Identity could not be registered at this time"))
+            return Err(Status::cancelled("Identity could not be registered at this time. May already be registered."))
         }
 
         Ok(Response::new(AddIdentityDataResponse {}))
