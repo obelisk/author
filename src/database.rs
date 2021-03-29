@@ -2,7 +2,8 @@ pub mod schema;
 pub mod models;
 
 use crate::author::{
-    ModifySshKeyPrincipalsRequest,
+    Authorization,
+    ModifySshKeyAuthorizationsRequest,
     SetPermissionsOnSshKeyRequest,
     SshKey,
     ListRegisteredKeysRequest,
@@ -34,6 +35,7 @@ impl From<models::RegisteredSshKey> for SshKey {
             attestation_certificate: rsk.attestation_certificate.unwrap_or_default(),
             attestation_intermediate: rsk.attestation_intermediate.unwrap_or_default(),
             ssh_enabled: rsk.ssh_enabled,
+            use_owner_as_principal: rsk.use_owner_as_principal,
             host_unrestricted: rsk.host_unrestricted,
             principal_unrestricted: rsk.principal_unrestricted,
             can_create_host_certs: rsk.can_create_host_certs,
@@ -41,7 +43,16 @@ impl From<models::RegisteredSshKey> for SshKey {
             max_creation_time: rsk.max_creation_time as u64,
             force_source_ip: rsk.force_source_ip,
             force_command: rsk.force_command.unwrap_or_default(),
+            authorizations: vec![],
+        }
+    }
+}
 
+impl From<models::FingerprintAuthorization> for Authorization {
+    fn from(auth: models::FingerprintAuthorization) -> Self {
+        Authorization {
+            auth_type: auth.type_,
+            resource: auth.resource, 
         }
     }
 }
@@ -72,6 +83,7 @@ impl Database {
             attestation_certificate: None,
             attestation_intermediate: None,
             ssh_enabled: false,
+            use_owner_as_principal: false,
             host_unrestricted: false,
             principal_unrestricted: false,
             can_create_host_certs: false,
@@ -128,29 +140,60 @@ impl Database {
                 }
         };
 
-        Ok(ListRegisteredKeysResponse {
-            keys: keys.into_iter().map(|x| x.into()).collect(),
-        })
+        // Only do further investigation of keys if there are 2 or fewer since
+        // doing many queries could become expensive. We do two to facilitate
+        // building systems that can compare keys.
+        if limit <= 2 {
+            use schema::fingerprint_authorizations::dsl::*;
+            let keys = keys.into_iter().map(|x| {
+
+                let results = match schema::fingerprint_authorizations::table
+                .filter(fingerprint.eq(&x.fingerprint))
+                .load::<models::FingerprintAuthorization>(&connection) {
+                    Ok(results) => results,
+                    Err(_) => return x.into(),
+                };
+
+                let mut key: SshKey = x.into();
+                key.authorizations = results.into_iter().map(|x| x.into()).collect();
+                
+                key
+            }).collect();
+
+            Ok(ListRegisteredKeysResponse {
+                keys
+            })
+        } else {
+            Ok(ListRegisteredKeysResponse {
+                keys: keys.into_iter().map(|x| x.into()).collect(),
+            })
+        }
     }
 
+    /// This sets the permissions for an SSH key in Author. It still needs some work
+    /// some work as in some isolated cases (adding or removing many tiers and
+    /// principals) it could do many inserts.
     pub fn set_permissions_on_ssh_key(&self, permissions: SetPermissionsOnSshKeyRequest) -> Result<(), ()> {
         let connection = match self.pool.get() {
             Ok(conn) => conn,
             Err(_e) => return Err(()),
         };
 
-        {
+        let fp = permissions.fingerprint;
+
+        let permissions_result = {
             use schema::registered_ssh_keys::dsl::*;
             match diesel::update(registered_ssh_keys)
                 .set((
                     ssh_enabled.eq(permissions.ssh_enabled),
+                    use_owner_as_principal.eq(permissions.use_owner_as_principal),
                     host_unrestricted.eq(permissions.host_unrestricted),
                     principal_unrestricted.eq(permissions.principal_unrestricted),
                     can_create_host_certs.eq(permissions.can_create_host_certs),
                     can_create_user_certs.eq(permissions.can_create_user_certs),
                     max_creation_time.eq(permissions.max_creation_time as i64),
                     force_source_ip.eq(permissions.force_source_ip),
-                    force_command.eq(permissions.force_command),
+                    force_command.eq(&permissions.force_command),
                 ))
                 .execute(&connection) {
                 Ok(_) => Ok(()),
@@ -159,62 +202,100 @@ impl Database {
                     Err(())
                 },
             }
+        };
+
+        // Because PROST! doesn't do optional types and just casts to default,
+        // can't tell the difference between remove all authorizations (passing
+        // and empty array) or don't touch them (not sending an array). So
+        // we have this boolean and will only update them if it's set to true
+        if !permissions.set_authorizations {
+            return Ok(())
         }
+
+        {
+            use schema::fingerprint_authorizations::dsl::*;
+            // Remove all previous authorizations.
+            match diesel::delete(fingerprint_authorizations)
+            .filter(fingerprint.eq(&fp))
+            .execute(&connection) {
+                Ok(_) => Ok(()),
+                Err(_) => {
+                    error!("Error deleting principals from key {}", &fp);
+                    Err(())
+                }
+            }.unwrap();
+        }
+        self.set_identity_authorizations(fp.as_str(), "add", &permissions.authorizations)
     }
 
-    pub fn modify_ssh_key_principals(&self, request: ModifySshKeyPrincipalsRequest) -> Result<(), ()> {
+    fn set_identity_authorizations(&self, fingerprint: &str, action: &str, authorizations: &[Authorization]) -> Result<(), ()> {
         let connection = match self.pool.get() {
             Ok(conn) => conn,
             Err(_e) => return Err(()),
         };
-        let fingerprint = &request.fingerprint;
-        let principals: Vec<models::PrincipalAuthorization> = request.principals.iter().map(|x|
-            models::PrincipalAuthorization {
-                fingerprint: fingerprint.clone(),
-                principal: x.clone(),
+
+        let authorizations: Vec<models::FingerprintAuthorization> = authorizations.iter().map(|x|
+            models::FingerprintAuthorization {
+                fingerprint: fingerprint.to_string(),
+                type_: x.auth_type.clone(),
+                resource: x.resource.clone(),
             }).collect();
-
+        
         {
-            use schema::fingerprint_principal_authorizations::dsl::*;
-
-            match request.action.as_str() {
-                "add" => {
-                    // Again Diesel issues where it doesn't support multiple
-                    // insert in SQLite
-                    let mut errors: Vec<String> = vec![];
-                    principals.into_iter().fold(&mut errors, |v, x| {
-                        if let Err(e) = diesel::insert_into(fingerprint_principal_authorizations)
-                        .values(&x)
-                        .execute(&connection) {
-                            error!("Error adding principal {}: {}", x.principal, e);
-                            v.push(x.principal);
-                        }
-                        v
-                    });
-                    match errors.len() {
-                        0 => Ok(()),
-                        _ => {
-                            error!("Errored adding principals {} to {}", errors.join(","), &request.fingerprint);
-                            Err(())
-                        }
+            use schema::fingerprint_authorizations::dsl::*;
+            
+            // This could probably use some clean up but what it does is
+            // fold the authorizations array into the relevant inserts or
+            // deletes
+            let mut errors: Vec<(String, String)> = vec![];
+            let errors = authorizations.into_iter().fold(&mut errors, |y, x| {
+                if &action == &"add" {
+                    if let Err(_) = diesel::insert_into(fingerprint_authorizations)
+                    .values(&x)
+                    .execute(&connection) {
+                        y.push((x.type_, x.resource));
                     }
-                },
-                "remove" => {
-                    match diesel::delete(fingerprint_principal_authorizations)
+                } else {
+                    if let Err(_) = diesel::delete(fingerprint_authorizations)
                         .filter(fingerprint.eq(&fingerprint))
-                        .filter(principal.eq_any(&request.principals)).execute(&connection) {
-                        Ok(_) => Ok(()),
-                        Err(_) => {
-                            error!("Error deleting principals from key {}", &request.fingerprint);
-                            Err(())
+                        .filter(type_.eq(&x.type_))
+                        .filter(resource.eq(&x.resource))
+                        .execute(&connection) {
+                            y.push((x.type_, x.resource));
                         }
                     }
-                },
-                n => {
-                    error!("Unknown action on principals tried to be taken: {}", n);
+                    y
+                }
+            );
+            match errors.len() {
+                0 => Ok(()),
+                _ => {
                     Err(())
                 }
             }
+        }
+    }
+    
+    pub fn modify_ssh_key_authorizations(&self, request: ModifySshKeyAuthorizationsRequest) -> Result<(), ()> {
+        self.set_identity_authorizations(request.fingerprint.as_str(), request.action.as_str(), &request.authorizations)
+    }
+
+    /// Take a list of tiers and return all fingerprints that are marked as
+    /// belonging to that tier
+    pub fn tiers_to_fingerprints(&self, tiers: &[String]) -> Result<Vec<String>, ()> {
+        use schema::fingerprint_authorizations::dsl::*;
+
+        let connection = match self.pool.get() {
+            Ok(conn) => conn,
+            Err(_e) => return Err(()),
+        };
+
+        match schema::fingerprint_authorizations::table
+        .filter(type_.eq("in_tier"))
+        .filter(resource.eq_any(tiers))
+        .load::<models::FingerprintAuthorization>(&connection) {
+            Ok(results) => Ok(results.into_iter().map(|x| x.fingerprint).collect()),
+            Err(_) => return Err(()),
         }
     }
 }

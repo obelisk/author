@@ -23,9 +23,7 @@ use dotenv::dotenv;
 use tonic::{transport::Server, Request, Response, Status};
 use tonic::transport::{Certificate, Identity, ServerTlsConfig};
 
-use std::collections::HashMap;
 use std::env;
-use rand::Rng;
 
 pub mod author {
     tonic::include_proto!("author");
@@ -63,16 +61,16 @@ impl Author for MyAuthor {
             Err(_) => Err(Status::permission_denied("Could not set permissions on key")),
         }
     }
-
-    async fn modify_ssh_key_principals(
+    
+    async fn modify_ssh_key_authorizations(
         &self,
-        request: Request<ModifySshKeyPrincipalsRequest>,
-    ) -> Result<Response<ModifySshKeyPrincipalsResponse>, Status> {
+        request: Request<ModifySshKeyAuthorizationsRequest>,
+    ) -> Result<Response<ModifySshKeyAuthorizationsResponse>, Status> {
         let _remote_addr = request.remote_addr().unwrap();
         let request = request.into_inner();
 
-        match &self.db.modify_ssh_key_principals(request) {
-            Ok(_) => Ok(Response::new(ModifySshKeyPrincipalsResponse {})),
+        match &self.db.modify_ssh_key_authorizations(request) {
+            Ok(_) => Ok(Response::new(ModifySshKeyAuthorizationsResponse {})),
             Err(_) => Err(Status::permission_denied("Could not set principals on key")),
         }
     }
@@ -108,48 +106,9 @@ impl Author for MyAuthor {
         let request = request.into_inner();
         println!("{:?} requested: {:?}", remote_addr, request);
 
-        let request_type = &request.authorization_request["type"];
-
-        match request_type.as_str() {
-            "ssh" => {
-                let cert_type = &request.authorization_request["cert_type"];
-                let mut rng = rand::thread_rng();
-
-                // Hard coded rule: Don't allow creation of host certs
-                if cert_type == "host certificate" {
-                    return Err(Status::permission_denied("Not allowed to create host certs"));
-                }
-
-                // Normally you'd do a bunch of DB look ups here to determine what these values should be
-                // but right now just pass them though as proof of concept
-                let mut response = HashMap::new();
-                response.insert(String::from("valid_before"), request.authorization_request["valid_before"].clone());
-                response.insert(String::from("valid_after"), request.authorization_request["valid_after"].clone());
-                response.insert(String::from("serial"), rng.gen::<u64>().to_string());
-                response.insert(String::from("servers"), request.authorization_request["servers"].clone());
-                response.insert(String::from("principals"), request.authorization_request["principals"].clone());
-                response.insert(String::from("valid_before"), request.authorization_request["valid_before"].clone());
-                response.insert(String::from("valid_after"), request.authorization_request["valid_after"].clone());
-
-                let reply = author::AuthorizeResponse {
-                    approval_response: response,
-                };
-
-                Ok(Response::new(reply))
-            },
-            "mtls" => {
-                // We don't do anything here other than log a new mTLS cert was issued.
-                // Again you could have tonnes of control over this like requiring mTLS certs
-                // for a user come from a UUID issued to that user.
-                let reply = author::AuthorizeResponse {
-                    approval_response: HashMap::new(),
-                };
-
-                Ok(Response::new(reply))
-            }
-            _ => {
-                return Err(Status::invalid_argument("Unknown request type"));
-            }
+        match rpc::authorize::authorize(&self.db, &request) {
+            Ok(response) => Ok(Response::new(response)),
+            Err(_) => Err(Status::permission_denied(""))
         }
     }
 }

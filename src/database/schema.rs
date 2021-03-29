@@ -1,6 +1,14 @@
 table! {
-    fingerprint_extensions (id) {
-        id -> BigInt,
+    fingerprint_authorizations (fingerprint, type_, resource) {
+        fingerprint -> Text,
+        #[sql_name = "type"]
+        type_ -> Text,
+        resource -> Text,
+    }
+}
+
+table! {
+    fingerprint_extensions (fingerprint, extension_name) {
         fingerprint -> Text,
         extension_name -> Text,
         extension_value -> Nullable<Text>,
@@ -8,17 +16,9 @@ table! {
 }
 
 table! {
-    fingerprint_host_authorizations (id) {
-        id -> BigInt,
+    host_tiers (tier, fingerprint) {
+        tier -> Text,
         fingerprint -> Text,
-        hostname -> Text,
-    }
-}
-
-table! {
-    fingerprint_principal_authorizations (fingerprint, principal) {
-        fingerprint -> Text,
-        principal -> Text,
     }
 }
 
@@ -33,6 +33,7 @@ table! {
         attestation_certificate -> Nullable<Text>,
         attestation_intermediate -> Nullable<Text>,
         ssh_enabled -> Bool,
+        use_owner_as_principal -> Bool,
         host_unrestricted -> Bool,
         principal_unrestricted -> Bool,
         can_create_host_certs -> Bool,
@@ -44,8 +45,8 @@ table! {
 }
 
 allow_tables_to_appear_in_same_query!(
+    fingerprint_authorizations,
     fingerprint_extensions,
-    fingerprint_host_authorizations,
-    fingerprint_principal_authorizations,
+    host_tiers,
     registered_ssh_keys,
 );

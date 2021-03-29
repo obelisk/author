@@ -34,30 +34,39 @@ message AddIdentityDataRequest {
 
 message AddIdentityDataResponse {}
 
+message Authorization {
+    string auth_type = 1;
+    string resource = 2;
+}
+
 message SetPermissionsOnSSHKeyRequest {
     map<string, string> identities = 1;
     string fingerprint = 2;
     bool ssh_enabled = 3;
-    bool can_create_host_certs = 4;
-    bool can_create_user_certs = 5;
-    bool host_unrestricted = 6;
-    bool principal_unrestricted = 7;
-    uint64 max_creation_time = 8;
-    map<string, string> extensions = 9;
-    string force_command = 10;
-    bool force_source_ip = 11;
+    bool use_owner_as_principal = 4;
+    bool can_create_host_certs = 5;
+    bool can_create_user_certs = 6;
+    bool host_unrestricted = 7;
+    bool principal_unrestricted = 8;
+    uint64 max_creation_time = 9;
+    map<string, string> extensions = 10;
+    string force_command = 11;
+    bool force_source_ip = 12;
+    bool set_authorizations = 13;
+    repeated Authorization authorizations = 14;
 }
 
 message SetPermissionsOnSSHKeyResponse {}
 
-message ModifySSHKeyPrincipalsRequest {
+
+message ModifySSHKeyAuthorizationsRequest {
     map<string, string> identities = 1;
     string fingerprint = 2;
     string action = 3;
-    repeated string principals = 4;
+    repeated Authorization authorizations = 4;
 }
 
-message ModifySSHKeyPrincipalsResponse {}
+message ModifySSHKeyAuthorizationsResponse {}
 
 message ListRegisteredKeysRequest {
     map<string, string> identities = 1;
@@ -75,23 +84,32 @@ message SSHKey {
     string attestation_certificate = 7;
     string attestation_intermediate = 8;
     bool ssh_enabled = 9;
-    bool can_create_host_certs = 10;
-    bool can_create_user_certs = 11;
-    bool host_unrestricted = 12;
-    bool principal_unrestricted = 13;
-    uint64 max_creation_time = 14;
-    string force_command = 15;
-    bool force_source_ip = 16;
+    bool use_owner_as_principal = 10;
+    bool can_create_host_certs = 11;
+    bool can_create_user_certs = 12;
+    bool host_unrestricted = 13;
+    bool principal_unrestricted = 14;
+    uint64 max_creation_time = 15;
+    string force_command = 16;
+    bool force_source_ip = 17;
+    repeated Authorization authorizations = 18;
 }
 
 message ListRegisteredKeysResponse {
     repeated SSHKey keys = 1;
 }
 
+message AddPropertyToIdentityRequest {
+    map<string, string> identities = 1;
+}
+
+message AddPropertyToIdentityResponse {}
+
 service Author {
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
     rpc AddIdentityData(AddIdentityDataRequest) returns (AddIdentityDataResponse);
     rpc SetPermissionsOnSSHKey(SetPermissionsOnSSHKeyRequest) returns (SetPermissionsOnSSHKeyResponse);
-    rpc ModifySSHKeyPrincipals(ModifySSHKeyPrincipalsRequest) returns (ModifySSHKeyPrincipalsResponse);
+    rpc ModifySSHKeyAuthorizations(ModifySSHKeyAuthorizationsRequest) returns (ModifySSHKeyAuthorizationsResponse);
     rpc ListRegisteredKeys(ListRegisteredKeysRequest) returns (ListRegisteredKeysResponse);
+    //rpc AddPropertyToIdentity(AddPropertyToIdentityRequest) returns (AddPropertyToIdentityResponse);
 }

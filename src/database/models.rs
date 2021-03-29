@@ -12,6 +12,7 @@ pub struct RegisteredSshKey {
     pub attestation_certificate: Option<String>,
     pub attestation_intermediate: Option<String>,
     pub ssh_enabled: bool,
+    pub use_owner_as_principal: bool,
     pub host_unrestricted: bool,
 	pub principal_unrestricted: bool,
 	pub can_create_host_certs: bool,
@@ -22,8 +23,9 @@ pub struct RegisteredSshKey {
 }
 
 #[derive(Queryable, Insertable)]
-#[table_name = "fingerprint_principal_authorizations"]
-pub struct PrincipalAuthorization {
+#[table_name = "fingerprint_authorizations"]
+pub struct FingerprintAuthorization {
     pub fingerprint: String,
-    pub principal: String,
+    pub type_: String,
+    pub resource: String,
 }
