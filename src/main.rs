@@ -116,7 +116,7 @@ impl Author for MyAuthor {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
-    let matches = App::new("rustica")
+    let matches = App::new("author")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Mitchell Grenier <mitchell@confurious.io>")
         .about("Author is a demo authentication orchestrator")
@@ -179,7 +179,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Author listening on {}", addr);
     Server::builder()
-        //.tls_config(tls)?
+        .tls_config(tls)?
         .add_service(AuthorServer::new(auth))
         .serve(addr)
         .await?;

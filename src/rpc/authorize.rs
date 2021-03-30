@@ -14,7 +14,7 @@ use std::time::SystemTime;
 
 fn authorize_ssh(db: &Database, request: &AuthorizeRequest) -> Result<AuthorizeResponse, ()> {
     let cert_type = &request.authorization_request["cert_type"];
-    let fingerprint = &request.authorization_request["fingerprint"];
+    let fingerprint = &request.identities["key_fingerprint"];
 
     let mut rng = rand::thread_rng();
 
@@ -54,7 +54,7 @@ fn authorize_ssh(db: &Database, request: &AuthorizeRequest) -> Result<AuthorizeR
         .collect();
     
     let mut principals: Vec<String> = key.authorizations.iter()
-        .filter(|x| x.auth_type == "principals")
+        .filter(|x| x.auth_type == "principal")
         .map(|x| x.resource.clone())
         .collect();
     
