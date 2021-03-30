@@ -19,7 +19,8 @@ pub struct RegisteredSshKey {
 	pub can_create_user_certs: bool,
 	pub max_creation_time: i64,
 	pub force_source_ip: bool,
-	pub force_command: Option<String>,
+    pub use_force_command: bool,
+	pub force_command: String,
 }
 
 #[derive(Queryable, Insertable)]

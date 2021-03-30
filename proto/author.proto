@@ -50,10 +50,11 @@ message SetPermissionsOnSSHKeyRequest {
     bool principal_unrestricted = 8;
     uint64 max_creation_time = 9;
     map<string, string> extensions = 10;
-    string force_command = 11;
-    bool force_source_ip = 12;
-    bool set_authorizations = 13;
-    repeated Authorization authorizations = 14;
+    bool use_force_command = 11;
+    string force_command = 12;
+    bool force_source_ip = 13;
+    bool set_authorizations = 14;
+    repeated Authorization authorizations = 15;
 }
 
 message SetPermissionsOnSSHKeyResponse {}
@@ -90,9 +91,10 @@ message SSHKey {
     bool host_unrestricted = 13;
     bool principal_unrestricted = 14;
     uint64 max_creation_time = 15;
-    string force_command = 16;
-    bool force_source_ip = 17;
-    repeated Authorization authorizations = 18;
+    bool use_force_command = 16;
+    string force_command = 17;
+    bool force_source_ip = 18;
+    repeated Authorization authorizations = 19;
 }
 
 message ListRegisteredKeysResponse {

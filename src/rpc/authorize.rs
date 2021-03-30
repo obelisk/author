@@ -1,5 +1,4 @@
 use crate::author::{
-    Authorization,
     AuthorizeRequest,
     AuthorizeResponse,
     ListRegisteredKeysRequest,
@@ -62,11 +61,13 @@ fn authorize_ssh(db: &Database, request: &AuthorizeRequest) -> Result<AuthorizeR
         principals.push(key.user);
     }
 
-    let authorized_fingerprints = match db.tiers_to_fingerprints(&tiers) {
-        Ok(authorized_fingerprints) => authorized_fingerprints,
-        Err(_) => return Err(())
-    };
-    response.insert(String::from("authorized_fingerprints"), authorized_fingerprints.join(","));
+    if !key.host_unrestricted {
+        let authorized_fingerprints = match db.tiers_to_fingerprints(&tiers) {
+            Ok(authorized_fingerprints) => authorized_fingerprints,
+            Err(_) => return Err(())
+        };
+        response.insert(String::from("authorized_fingerprints"), authorized_fingerprints.join(","));   
+    }
 
     let current_timestamp = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
         Ok(ts) => ts.as_secs(),
@@ -76,6 +77,10 @@ fn authorize_ssh(db: &Database, request: &AuthorizeRequest) -> Result<AuthorizeR
     response.insert(String::from("valid_before"), format!("{}", current_timestamp + key.max_creation_time));
     response.insert(String::from("serial"), rng.gen::<u64>().to_string());
     response.insert(String::from("principals"), principals.join(","));
+
+    if  key.use_force_command {
+        response.insert(String::from("force_command"), key.force_command);
+    }
 
     Ok(AuthorizeResponse {
         approval_response: response,

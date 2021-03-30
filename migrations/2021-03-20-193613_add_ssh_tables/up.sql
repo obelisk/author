@@ -15,7 +15,8 @@ CREATE TABLE registered_ssh_keys (
 	can_create_user_certs BOOLEAN DEFAULT FALSE NOT NULL,
 	max_creation_time BIGINT DEFAULT 10 NOT NULL,
 	force_source_ip BOOLEAN DEFAULT FALSE NOT NULL,
-	force_command TEXT NULL
+	use_force_command BOOLEAN DEFAULT FALSE NOT NULL,
+	force_command TEXT NOT NULL
 );
 
 -- Currently a type can be one of:

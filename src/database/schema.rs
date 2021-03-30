@@ -16,13 +16,6 @@ table! {
 }
 
 table! {
-    host_tiers (tier, fingerprint) {
-        tier -> Text,
-        fingerprint -> Text,
-    }
-}
-
-table! {
     registered_ssh_keys (fingerprint) {
         fingerprint -> Text,
         user -> Text,
@@ -40,13 +33,13 @@ table! {
         can_create_user_certs -> Bool,
         max_creation_time -> BigInt,
         force_source_ip -> Bool,
-        force_command -> Nullable<Text>,
+        use_force_command -> Bool,
+        force_command -> Text,
     }
 }
 
 allow_tables_to_appear_in_same_query!(
     fingerprint_authorizations,
     fingerprint_extensions,
-    host_tiers,
     registered_ssh_keys,
 );

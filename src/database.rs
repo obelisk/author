@@ -42,7 +42,8 @@ impl From<models::RegisteredSshKey> for SshKey {
             can_create_user_certs: rsk.can_create_user_certs,
             max_creation_time: rsk.max_creation_time as u64,
             force_source_ip: rsk.force_source_ip,
-            force_command: rsk.force_command.unwrap_or_default(),
+            use_force_command: rsk.use_force_command,
+            force_command: rsk.force_command,
             authorizations: vec![],
         }
     }
@@ -90,7 +91,8 @@ impl Database {
             can_create_user_certs: false,
             max_creation_time: 0,
             force_source_ip: true,
-            force_command: None,
+            use_force_command: false,
+            force_command: String::new(),
         };
 
         if let Some(attestation) = &key.attestation {
@@ -193,6 +195,7 @@ impl Database {
                     can_create_user_certs.eq(permissions.can_create_user_certs),
                     max_creation_time.eq(permissions.max_creation_time as i64),
                     force_source_ip.eq(permissions.force_source_ip),
+                    use_force_command.eq(&permissions.use_force_command),
                     force_command.eq(&permissions.force_command),
                 ))
                 .execute(&connection) {
