@@ -192,6 +192,7 @@ impl Database {
         let permissions_result = {
             use schema::registered_ssh_keys::dsl::*;
             match diesel::update(registered_ssh_keys)
+                .filter(fingerprint.eq(&fp))
                 .set((
                     ssh_enabled.eq(permissions.ssh_enabled),
                     use_owner_as_principal.eq(permissions.use_owner_as_principal),
