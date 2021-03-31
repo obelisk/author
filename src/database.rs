@@ -214,6 +214,10 @@ impl Database {
             }
         };
 
+        if let Err(_) = permissions_result {
+            return Err(())
+        }
+
         // Because PROST! doesn't do optional types and just casts to default,
         // can't tell the difference between remove all authorizations (passing
         // and empty array) or don't touch them (not sending an array). So
