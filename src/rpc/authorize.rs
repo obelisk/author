@@ -78,8 +78,12 @@ fn authorize_ssh(db: &Database, request: &AuthorizeRequest) -> Result<AuthorizeR
     response.insert(String::from("serial"), rng.gen::<u64>().to_string());
     response.insert(String::from("principals"), principals.join(","));
 
-    if  key.use_force_command {
+    if key.use_force_command {
         response.insert(String::from("force_command"), key.force_command);
+    }
+
+    if key.force_source_ip {
+        response.insert(String::from("force_source_ip"), String::new());
     }
 
     Ok(AuthorizeResponse {

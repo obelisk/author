@@ -126,7 +126,10 @@ impl Database {
 
         let connection = match self.pool.get() {
             Ok(conn) => conn,
-            Err(_e) => return Err(()),
+            Err(e) => {
+                println!("Error connecting to database: {}", e);
+                return Err(())
+            },
         };
 
         let keys = {
@@ -138,7 +141,10 @@ impl Database {
                 .limit(limit)
                 .load::<models::RegisteredSshKey>(&connection) {
                     Ok(results) => results,
-                    Err(_) => return Err(()),
+                    Err(e) => {
+                        println!("Query Error: {}", e);
+                        return Err(())
+                    },
                 }
         };
 
