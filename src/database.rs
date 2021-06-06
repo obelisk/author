@@ -8,6 +8,7 @@ use crate::author::{
     SshKey,
     ListRegisteredKeysRequest,
     ListRegisteredKeysResponse,
+    DeleteRegisteredSshKeyRequest,
 };
 
 
@@ -240,6 +241,26 @@ impl Database {
             }.unwrap();
         }
         self.set_identity_authorizations(fp.as_str(), "add", &permissions.authorizations)
+    }
+
+    pub fn delete_registered_ssh_key(&self, key: DeleteRegisteredSshKeyRequest) -> Result<(), ()> {
+        let connection = match self.pool.get() {
+            Ok(conn) => conn,
+            Err(_e) => return Err(()),
+        };
+
+        {
+            use schema::registered_ssh_keys::dsl::*;
+            match diesel::delete(registered_ssh_keys)
+                .filter(fingerprint.eq(&key.fingerprint))
+                .execute(&connection) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    error!("Could not delete registered key: {}", e);
+                    Err(())
+                },
+            }
+        }
     }
 
     fn set_identity_authorizations(&self, fingerprint: &str, action: &str, authorizations: &[Authorization]) -> Result<(), ()> {

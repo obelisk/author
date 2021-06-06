@@ -1,6 +1,6 @@
 CREATE TABLE registered_ssh_keys (
 	fingerprint TEXT PRIMARY KEY NOT NULL,
-    user TEXT NOT NULL,
+	user TEXT NOT NULL,
 	pin_policy TEXT NULL,
 	touch_policy TEXT NULL,
 	hsm_serial TEXT NULL,

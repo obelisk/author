@@ -59,7 +59,6 @@ message SetPermissionsOnSSHKeyRequest {
 
 message SetPermissionsOnSSHKeyResponse {}
 
-
 message ModifySSHKeyAuthorizationsRequest {
     map<string, string> identities = 1;
     string fingerprint = 2;
@@ -101,11 +100,13 @@ message ListRegisteredKeysResponse {
     repeated SSHKey keys = 1;
 }
 
-message AddPropertyToIdentityRequest {
+message DeleteRegisteredSSHKeyRequest {
     map<string, string> identities = 1;
+    string fingerprint = 2;
 }
 
-message AddPropertyToIdentityResponse {}
+message DeleteRegisteredSSHKeyResponse {}
+
 
 service Author {
     rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
@@ -113,5 +114,5 @@ service Author {
     rpc SetPermissionsOnSSHKey(SetPermissionsOnSSHKeyRequest) returns (SetPermissionsOnSSHKeyResponse);
     rpc ModifySSHKeyAuthorizations(ModifySSHKeyAuthorizationsRequest) returns (ModifySSHKeyAuthorizationsResponse);
     rpc ListRegisteredKeys(ListRegisteredKeysRequest) returns (ListRegisteredKeysResponse);
-    //rpc AddPropertyToIdentity(AddPropertyToIdentityRequest) returns (AddPropertyToIdentityResponse);
+    rpc DeleteRegisteredSSHKey(DeleteRegisteredSSHKeyRequest) returns (DeleteRegisteredSSHKeyResponse);
 }

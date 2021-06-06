@@ -61,6 +61,19 @@ impl Author for MyAuthor {
             Err(_) => Err(Status::permission_denied("Could not set permissions on key")),
         }
     }
+
+    async fn delete_registered_ssh_key(
+        &self,
+        request: Request<DeleteRegisteredSshKeyRequest>,
+    ) -> Result<Response<DeleteRegisteredSshKeyResponse>, Status> {
+        let _remote_addr = request.remote_addr().unwrap();
+        let request = request.into_inner();
+
+        match &self.db.delete_registered_ssh_key(request) {
+            Ok(_) => Ok(Response::new(DeleteRegisteredSshKeyResponse {})),
+            Err(_) => Err(Status::permission_denied("Could not delete key")),
+        }
+    }
     
     async fn modify_ssh_key_authorizations(
         &self,
@@ -104,7 +117,7 @@ impl Author for MyAuthor {
     ) -> Result<Response<AuthorizeResponse>, Status> {
         let remote_addr = request.remote_addr().unwrap();
         let request = request.into_inner();
-        println!("{:?} requested: {:?}", remote_addr, request);
+        debug!("{:?} requested: {:?}", remote_addr, request);
 
         match rpc::authorize::authorize(&self.db, &request) {
             Ok(response) => Ok(Response::new(response)),
