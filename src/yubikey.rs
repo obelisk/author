@@ -1,10 +1,10 @@
+use x509_parser::der_parser::oid;
 use crate::key::{Key, KeyAttestation, PinPolicy, TouchPolicy};
 
 use sshcerts::PublicKey;
 use std::convert::TryFrom;
-
+use std::convert::TryInto;
 use x509_parser::prelude::*;
-use x509_parser::der_parser::oid;
 
 
 const ROOT_CA: &[u8] = "-----BEGIN CERTIFICATE-----
@@ -45,25 +45,27 @@ impl From<x509_parser::error::X509Error> for YubikeyValidationError {
     }
 }
 
-fn build_key(ssh_pubkey: PublicKey, certificate: X509Certificate, client: &[u8], intermediate: &[u8]) -> Result<Key, YubikeyValidationError> {
+fn build_key(ssh_pubkey: PublicKey, certificate: X509Certificate, client: &[u8], intermediate: &[u8]) -> Key {
     let extensions = certificate.extensions();
 
     // Find the three things we need: Firmware, Yubikey serial, Usage Policies
     let firmware = &extensions[&oid!(1.3.6.1.4.1.41482.3.3)].value;
     let serial = &extensions[&oid!(1.3.6.1.4.1.41482.3.7)].value;
     let policy = &extensions[&oid!(1.3.6.1.4.1.41482.3.8)].value;
-    if firmware.len() != 3 || serial.len() != 5 || policy.len() != 2 {
+    if firmware.len() != 3 || serial.len() > 10 || policy.len() != 2 {
         error!("The certificate has an unexpected format");
-        Ok(Key {
+        Key {
             fingerprint: ssh_pubkey.fingerprint().hash,
             attestation: None,
-        })
+        }
     } else {
+        let mut serial = vec![0; 8 - (serial.len() - 2)];
+        serial.extend_from_slice(&extensions[&oid!(1.3.6.1.4.1.41482.3.7)].value[2..]);
         let firmware = format!("{}.{}.{}", firmware[0] as u8, firmware[1] as u8, firmware[2] as u8);
-        let serial = u32::from_be_bytes([0x0, serial[2], serial[3], serial[4]]);
+        let serial = u64::from_be_bytes(serial.try_into().unwrap());
         let pin_policy = PinPolicy::try_from(policy[0]).unwrap();
         let touch_policy = TouchPolicy::try_from(policy[1]).unwrap();
-        Ok(Key {
+        Key {
             fingerprint: ssh_pubkey.fingerprint().hash,
             attestation: Some(KeyAttestation {
                 firmware,
@@ -73,7 +75,7 @@ fn build_key(ssh_pubkey: PublicKey, certificate: X509Certificate, client: &[u8],
                 certificate: client.to_vec(),
                 intermediate: intermediate.to_vec(),
             })
-        })
+        }
     }
 }
 
@@ -82,8 +84,8 @@ fn build_key(ssh_pubkey: PublicKey, certificate: X509Certificate, client: &[u8],
 pub fn verify_certificate_chain(client: &[u8], intermediate: &[u8]) -> Result<Key, YubikeyValidationError> {
     // Extract the certificate public key and convert to an sshcerts PublicKey
     let ssh_pubkey = match sshcerts::yubikey::ssh::convert_x509_to_ssh_pubkey(client) {
-        Some(ssh) => ssh,
-        None => return Err(YubikeyValidationError::ParseError),
+        Ok(ssh) => ssh,
+        Err(_) => return Err(YubikeyValidationError::ParseError),
     };
 
     // Parse the root ca. This should never fail
@@ -102,5 +104,5 @@ pub fn verify_certificate_chain(client: &[u8], intermediate: &[u8]) -> Result<Ke
     parsed_client.verify_signature(Some(&parsed_intermediate.tbs_certificate.subject_pki))?;
     debug!("Certificate providence verified");
 
-    build_key(ssh_pubkey, parsed_client, client, intermediate)
+    Ok(build_key(ssh_pubkey, parsed_client, client, intermediate))
 }
