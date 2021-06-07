@@ -230,8 +230,7 @@ impl Database {
         {
             use schema::fingerprint_authorizations::dsl::*;
             // Remove all previous authorizations.
-            match diesel::delete(fingerprint_authorizations)
-            .filter(fingerprint.eq(&fp))
+            match diesel::delete(fingerprint_authorizations.filter(fingerprint.eq(&fp)))
             .execute(&connection) {
                 Ok(_) => Ok(()),
                 Err(_) => {
@@ -251,8 +250,7 @@ impl Database {
 
         {
             use schema::registered_ssh_keys::dsl::*;
-            match diesel::delete(registered_ssh_keys)
-                .filter(fingerprint.eq(&key.fingerprint))
+            match diesel::delete(registered_ssh_keys.filter(fingerprint.eq(&key.fingerprint)))
                 .execute(&connection) {
                 Ok(_) => Ok(()),
                 Err(e) => {
@@ -263,7 +261,7 @@ impl Database {
         }
     }
 
-    fn set_identity_authorizations(&self, fingerprint: &str, action: &str, authorizations: &[Authorization]) -> Result<(), ()> {
+    fn set_identity_authorizations(&self, fingerprint_: &str, action: &str, authorizations: &[Authorization]) -> Result<(), ()> {
         let connection = match self.pool.get() {
             Ok(conn) => conn,
             Err(_e) => return Err(()),
@@ -271,7 +269,7 @@ impl Database {
 
         let authorizations: Vec<models::FingerprintAuthorization> = authorizations.iter().map(|x|
             models::FingerprintAuthorization {
-                fingerprint: fingerprint.to_string(),
+                fingerprint: fingerprint_.to_string(),
                 type_: x.auth_type.clone(),
                 resource: x.resource.clone(),
             }).collect();
@@ -291,10 +289,10 @@ impl Database {
                         y.push((x.type_, x.resource));
                     }
                 } else {
-                    if let Err(_) = diesel::delete(fingerprint_authorizations)
-                        .filter(fingerprint.eq(&fingerprint))
-                        .filter(type_.eq(&x.type_))
-                        .filter(resource.eq(&x.resource))
+                    if let Err(_) = diesel::delete(fingerprint_authorizations
+                            .filter(fingerprint.eq(&fingerprint_))
+                            .filter(type_.eq(&x.type_))
+                            .filter(resource.eq(&x.resource)))
                         .execute(&connection) {
                             y.push((x.type_, x.resource));
                         }
